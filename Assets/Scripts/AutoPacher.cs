@@ -1,25 +1,23 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class AutoPacher : MonoSingleton<AutoPacher>
 {
-    #region Vars
-    float localVersion;
-    float remoteVersion;
-    #endregion
-
-    #region Methods
-    // Start is called before the first frame update
-    void Start()
+    #region Properties
+    public float LocalProjectVersion
     {
-        localVersion = PlayerPrefs.GetFloat(nameof(localVersion), 0);
+        get
+        {
+            return PlayerPrefs.GetFloat(nameof(LocalProjectVersion), 0);
+        }
+        set
+        {
+            PlayerPrefs.SetFloat(nameof(LocalProjectVersion), value);
+        }
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    public float RemoteProjectVersion { get; set; }
     #endregion
 }

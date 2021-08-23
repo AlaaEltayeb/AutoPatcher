@@ -5,16 +5,23 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class FirebaseManager : MonoBehaviour
+public class FirebaseManager : MonoSingletonPersistent<FirebaseManager>
 {
     #region Vars
+    FirebaseDatabase database;
     DatabaseReference dBReference;
+
     [SerializeField] string databaseUri;
+    #endregion
+
+    #region Properties
+    public DatabaseReference DBReference { get => dBReference; set => dBReference = value; }
     #endregion
 
     #region Methods
     private void Start()
     {
+        PlayerPrefs.DeleteAll();
         Init();
     }
 
@@ -34,14 +41,14 @@ public class FirebaseManager : MonoBehaviour
                 return;
             }
 
-            FirebaseApp.DefaultInstance.Options.DatabaseUrl = new Uri(databaseUri);
-            dBReference = FirebaseDatabase.DefaultInstance.RootReference;
-
             finished = true;
         });
 
         while (!finished)
             yield return null;
+
+        database = FirebaseDatabase.GetInstance(databaseUri);
+        DBReference = database.RootReference;
 
         StartCoroutine(GetRemoteVersion());
     }
@@ -52,19 +59,20 @@ public class FirebaseManager : MonoBehaviour
         string result = "";
         string key = "";
 
-        dBReference.Child("ProjectVersion").GetValueAsync().ContinueWith(task =>
+        DBReference.Child("ProjectVersion").GetValueAsync().ContinueWith(task =>
         {
             result = task.Result.GetRawJsonValue();
             key = task.Result.Key;
-
-            print(result);
-            print(key);
 
             finished = true;
         });
 
         while (!finished)
             yield return null;
+
+        AutoPacher.Instance.RemoteProjectVersion = float.Parse(result);
+        if (AutoPacher.Instance.RemoteProjectVersion > AutoPacher.Instance.LocalProjectVersion)
+            DownloadManager.Instance.InitStorage();
     }
     #endregion
 }
