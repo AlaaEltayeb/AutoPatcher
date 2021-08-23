@@ -1,11 +1,12 @@
 ﻿using Firebase.Storage;
-using System.Collections;
+using System;
 using System.IO;
+using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.Android;
 using UnityEngine.Networking;
-using UnityEngine.UI;
 
 //using Task = System.Threading.Tasks.Task;
 //using CancellationToken = System.Threading.CancellationToken;
@@ -19,6 +20,8 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
     string downloadPath;
     FirebaseStorage storageInstance;
     StorageReference storage_ref;
+
+    [SerializeField] Image _img;
     #endregion
 
     #region Properties
@@ -50,7 +53,9 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
     {
         msg.text = "Downloading";
 
-        downloadPath = Path.Combine(Application.persistentDataPath, "Versions", $"Version{ (AutoPacher.Instance.LocalProjectVersion + 1).ToString() }.png");
+        downloadPath = Path.Combine(Application.persistentDataPath, "Versions", $"Version{ (AutoPacher.Instance.LocalProjectVersion + 1).ToString() }");
+
+        downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         Directory.CreateDirectory(downloadPath);
 
         StartCoroutine(IDownloadFile());
@@ -62,12 +67,15 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
         string result = "";
 
         //print(downloadPath);
-        StorageReference reference = storage_ref.Child("Version1.png");
+        StorageReference reference = storage_ref.Child("version1");
+
         reference.GetDownloadUrlAsync().ContinueWith(task =>
         {
             if (!task.IsFaulted && !task.IsCanceled)
             {
                 result = task.Result.ToString();
+                finished = true;
+
                 Debug.Log("Download URL: " + task.Result);
             }
             else
@@ -76,25 +84,24 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
             }
         });
 
-        //Task task = storage_ref.Child("Version1.png").GetFileAsync(downloadPath, new StorageProgress<DownloadState>((DownloadState state) =>
-        //{
-        //    progressBar.fillAmount = ((float)state.BytesTransferred / (float)state.TotalByteCount);
-        //}), CancellationToken.None);
-        //task.ContinueWith(resultTask =>
-        //{
-        //    if (!resultTask.IsFaulted && !resultTask.IsCanceled)
-        //    {
-        //        finished = true;
-        //        Debug.Log("Download finished.");
-        //    }
-        //});
-
         while (!finished)
             yield return null;
 
-        using (UnityWebRequest webRequest = UnityWebRequest.Get(result))
+        using (UnityWebRequest webRequest = UnityWebRequestAssetBundle.GetAssetBundle(result))
         {
+            //webRequest.downloadHandler = new DownloadHandlerFile(downloadPath);
+
+            ////DownloadHandlerTexture texDl = new DownloadHandlerTexture(true);
+            ////webRequest.downloadHandler = texDl;
+
             yield return webRequest.SendWebRequest();
+
+            if (webRequest.result != UnityWebRequest.Result.Success)
+                Debug.LogError(webRequest.error);
+            else
+            {
+                AssetBundle bundle = DownloadHandlerAssetBundle.GetContent(webRequest);
+            }
         }
 
         finished = false;
