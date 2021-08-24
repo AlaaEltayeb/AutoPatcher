@@ -73,6 +73,8 @@ public class FirebaseManager : MonoSingletonPersistent<FirebaseManager>
         AutoPacher.Instance.RemoteProjectVersion = float.Parse(result);
         if (AutoPacher.Instance.RemoteProjectVersion > AutoPacher.Instance.LocalProjectVersion)
             DownloadManager.Instance.InitStorage();
+        else
+            DownloadManager.Instance.LoadLocalAssetBundle();
     }
     #endregion
 }

@@ -14,14 +14,16 @@ using UnityEngine.Networking;
 public class DownloadManager : MonoSingletonPersistent<DownloadManager>
 {
     #region Vars
+    [SerializeField] Image _img;
     [SerializeField] Image progressBar;
     [SerializeField] TextMeshProUGUI msg;
 
     string downloadPath;
+
     FirebaseStorage storageInstance;
     StorageReference storage_ref;
 
-    [SerializeField] Image _img;
+    [SerializeField] MeshRenderer cube;
     #endregion
 
     #region Properties
@@ -53,9 +55,12 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
     {
         msg.text = "Downloading";
 
-        downloadPath = Path.Combine(Application.persistentDataPath, "Versions", $"Version{ (AutoPacher.Instance.LocalProjectVersion + 1).ToString() }");
+        downloadPath = Path.Combine(Application.persistentDataPath, "Versions");
 
-        downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        //downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+
+        //downloadPath = "Assets/StreamingAssets";
+
         Directory.CreateDirectory(downloadPath);
 
         StartCoroutine(IDownloadFile());
@@ -67,7 +72,7 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
         string result = "";
 
         //print(downloadPath);
-        StorageReference reference = storage_ref.Child("version1");
+        StorageReference reference = storage_ref.Child($"version{AutoPacher.Instance.LocalProjectVersion + 1}");
 
         reference.GetDownloadUrlAsync().ContinueWith(task =>
         {
@@ -89,18 +94,27 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
 
         using (UnityWebRequest webRequest = UnityWebRequestAssetBundle.GetAssetBundle(result))
         {
-            //webRequest.downloadHandler = new DownloadHandlerFile(downloadPath);
+            webRequest.downloadHandler = new DownloadHandlerFile(Path.Combine(downloadPath, $"version{AutoPacher.Instance.LocalProjectVersion + 1}"));
 
-            ////DownloadHandlerTexture texDl = new DownloadHandlerTexture(true);
-            ////webRequest.downloadHandler = texDl;
+            UnityWebRequestAsyncOperation op = webRequest.SendWebRequest();
 
-            yield return webRequest.SendWebRequest();
+            while (!op.isDone)
+            {
+                progressBar.fillAmount = webRequest.downloadProgress;
+
+                yield return null;
+            }
 
             if (webRequest.result != UnityWebRequest.Result.Success)
-                Debug.LogError(webRequest.error);
+            {
+                Debug.Log(webRequest.error);
+            }
             else
             {
+                Debug.Log("download success");
+
                 AssetBundle bundle = DownloadHandlerAssetBundle.GetContent(webRequest);
+                cube.material = bundle.LoadAsset<Material>("CubeColor");
             }
         }
 
@@ -118,6 +132,13 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
             msg.text = "Checking game version";
             DownloadFile();
         }
+    }
+
+    public void LoadLocalAssetBundle()
+    {
+
+        //AssetBundle bundle = bunde DownloadHandlerAssetBundle.GetContent(webRequest);
+        //cube.material = bundle.LoadAsset<Material>("CubeColor");
     }
     #endregion
     #endregion
