@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Android;
 using UnityEngine.Networking;
+using System.Collections.Generic;
 
 //using Task = System.Threading.Tasks.Task;
 //using CancellationToken = System.Threading.CancellationToken;
@@ -14,7 +15,6 @@ using UnityEngine.Networking;
 public class DownloadManager : MonoSingletonPersistent<DownloadManager>
 {
     #region Vars
-    [SerializeField] Image _img;
     [SerializeField] Image progressBar;
     [SerializeField] TextMeshProUGUI msg;
 
@@ -22,11 +22,10 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
 
     FirebaseStorage storageInstance;
     StorageReference storage_ref;
-
-    [SerializeField] MeshRenderer cube;
     #endregion
 
     #region Properties
+    public List<AssetBundle> Bundles { get; set; } = new List<AssetBundle>();
     #endregion
 
     #region Methods
@@ -40,28 +39,25 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
         if (!Permission.HasUserAuthorizedPermission(Permission.ExternalStorageWrite))
             Permission.RequestUserPermission(Permission.ExternalStorageWrite);
 #endif
+
+        InitStorage();
+
+        downloadPath = Path.Combine(Application.persistentDataPath, "Versions");
     }
 
     public void InitStorage()
     {
         storageInstance = FirebaseStorage.DefaultInstance;
         storage_ref = storageInstance.GetReferenceFromUrl("gs://autopatcher-47edb.appspot.com/");
-
-        DownloadFile();
     }
 
     #region Download New Files
-    void DownloadFile()
+    public void DownloadFile()
     {
         msg.text = "Downloading";
 
-        downloadPath = Path.Combine(Application.persistentDataPath, "Versions");
-
-        //downloadPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-
-        //downloadPath = "Assets/StreamingAssets";
-
-        Directory.CreateDirectory(downloadPath);
+        if (!Directory.Exists(downloadPath))
+            Directory.CreateDirectory(downloadPath);
 
         StartCoroutine(IDownloadFile());
     }
@@ -71,7 +67,6 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
         bool finished = false;
         string result = "";
 
-        //print(downloadPath);
         StorageReference reference = storage_ref.Child($"version{AutoPacher.Instance.LocalProjectVersion + 1}");
 
         reference.GetDownloadUrlAsync().ContinueWith(task =>
@@ -80,12 +75,6 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
             {
                 result = task.Result.ToString();
                 finished = true;
-
-                Debug.Log("Download URL: " + task.Result);
-            }
-            else
-            {
-                print(task.Exception);
             }
         });
 
@@ -104,18 +93,6 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
 
                 yield return null;
             }
-
-            if (webRequest.result != UnityWebRequest.Result.Success)
-            {
-                Debug.Log(webRequest.error);
-            }
-            else
-            {
-                Debug.Log("download success");
-
-                AssetBundle bundle = DownloadHandlerAssetBundle.GetContent(webRequest);
-                cube.material = bundle.LoadAsset<Material>("CubeColor");
-            }
         }
 
         finished = false;
@@ -126,6 +103,7 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
         if (AutoPacher.Instance.LocalProjectVersion == AutoPacher.Instance.RemoteProjectVersion)
         {
             msg.text = "Finished downloading, loading game scene";
+            LoadLocalAssetBundle();
         }
         else
         {
@@ -136,9 +114,15 @@ public class DownloadManager : MonoSingletonPersistent<DownloadManager>
 
     public void LoadLocalAssetBundle()
     {
+        msg.text = "Loading Assets";
 
-        //AssetBundle bundle = bunde DownloadHandlerAssetBundle.GetContent(webRequest);
-        //cube.material = bundle.LoadAsset<Material>("CubeColor");
+        for (int i = 0; i < AutoPacher.Instance.LocalProjectVersion; i++)
+        {
+            AssetBundle bundle = AssetBundle.LoadFromFile(Path.Combine(downloadPath, $"version{i + 1}"));
+            Bundles.Add(bundle);
+        }
+
+        msg.text = "Assets Loaded";
     }
     #endregion
     #endregion
